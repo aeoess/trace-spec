@@ -1,0 +1,24 @@
+{
+  "name": "04-attempted-but-unresolved-second-record",
+  "description": "The same unresolved outcome on a different record and a different unresolved code.",
+  "source_vector": "examples/build-provenance-depth/04-builder-accepts-dependency-unattested.json",
+  "declared_depth": "transitive",
+  "attempted_depth": "transitive",
+  "configured_floor": "builder",
+  "runner_result": {
+    "outcome": "accept",
+    "verified_depth": "builder",
+    "failures": [],
+    "unresolved": [
+      "dependency_attestation_missing"
+    ]
+  },
+  "expected_appraisal": {
+    "status": "affirming",
+    "verifier": "https://verifier.example/trace",
+    "policy_ref": "https://verifier.example/policy/builder-floor",
+    "timestamp": 1756900000,
+    "provenance_depth_verified": "builder",
+    "provenance_depth_not_reached": "unresolved"
+  }
+}

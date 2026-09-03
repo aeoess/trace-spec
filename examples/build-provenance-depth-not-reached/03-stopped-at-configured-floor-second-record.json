@@ -1,0 +1,22 @@
+{
+  "name": "03-stopped-at-configured-floor-second-record",
+  "description": "The same stopping point on a different record, so not_attempted is load-bearing for two vectors rather than one.",
+  "source_vector": "examples/build-provenance-depth/04-builder-accepts-dependency-unattested.json",
+  "declared_depth": "transitive",
+  "attempted_depth": "builder",
+  "configured_floor": "builder",
+  "runner_result": {
+    "outcome": "accept",
+    "verified_depth": "builder",
+    "failures": [],
+    "unresolved": []
+  },
+  "expected_appraisal": {
+    "status": "affirming",
+    "verifier": "https://verifier.example/trace",
+    "policy_ref": "https://verifier.example/policy/builder-floor",
+    "timestamp": 1756900000,
+    "provenance_depth_verified": "builder",
+    "provenance_depth_not_reached": "not_attempted"
+  }
+}

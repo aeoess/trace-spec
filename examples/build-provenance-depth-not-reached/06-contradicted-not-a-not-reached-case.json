@@ -1,0 +1,23 @@
+{
+  "name": "06-contradicted-not-a-not-reached-case",
+  "description": "Evidence resolved and contradicts the record. That is a failure, not a depth that went unreached, so the value is absent and the appraisal is contraindicated.",
+  "source_vector": "examples/build-provenance-depth/05-builder-accepts-dependency-publisher-untrusted.json",
+  "declared_depth": "transitive",
+  "attempted_depth": "transitive",
+  "configured_floor": "builder",
+  "runner_result": {
+    "outcome": "reject",
+    "verified_depth": "transitive",
+    "failures": [
+      "dependency_publisher_untrusted"
+    ],
+    "unresolved": []
+  },
+  "expected_appraisal": {
+    "status": "contraindicated",
+    "verifier": "https://verifier.example/trace",
+    "policy_ref": "https://verifier.example/policy/builder-floor",
+    "timestamp": 1756900000,
+    "provenance_depth_verified": "transitive"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "02-attempted-but-unresolved",
+  "description": "The dependency walk is attempted and its evidence does not resolve, so it caps at builder. The runner reports verified builder with a nonempty unresolved list.",
+  "source_vector": "examples/build-provenance-depth/06-builder-accepts-resolved-dependencies-absent.json",
+  "declared_depth": "transitive",
+  "attempted_depth": "transitive",
+  "configured_floor": "builder",
+  "runner_result": {
+    "outcome": "accept",
+    "verified_depth": "builder",
+    "failures": [],
+    "unresolved": [
+      "resolved_dependencies_absent"
+    ]
+  },
+  "expected_appraisal": {
+    "status": "affirming",
+    "verifier": "https://verifier.example/trace",
+    "policy_ref": "https://verifier.example/policy/builder-floor",
+    "timestamp": 1756900000,
+    "provenance_depth_verified": "builder",
+    "provenance_depth_not_reached": "unresolved"
+  }
+}

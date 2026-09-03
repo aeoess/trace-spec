@@ -1,0 +1,22 @@
+{
+  "name": "01-stopped-at-configured-floor",
+  "description": "The issuer declares transitive. The floor is builder and the dependency walk is never attempted, so the verifier stops at its own ceiling and the runner reports verified builder with an empty unresolved list.",
+  "source_vector": "examples/build-provenance-depth/06-builder-accepts-resolved-dependencies-absent.json",
+  "declared_depth": "transitive",
+  "attempted_depth": "builder",
+  "configured_floor": "builder",
+  "runner_result": {
+    "outcome": "accept",
+    "verified_depth": "builder",
+    "failures": [],
+    "unresolved": []
+  },
+  "expected_appraisal": {
+    "status": "affirming",
+    "verifier": "https://verifier.example/trace",
+    "policy_ref": "https://verifier.example/policy/builder-floor",
+    "timestamp": 1756900000,
+    "provenance_depth_verified": "builder",
+    "provenance_depth_not_reached": "not_attempted"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "05-depth-reached-no-placeholder",
+  "description": "The declared depth is reached, so nothing declared went unreached and the value is absent.",
+  "source_vector": "examples/build-provenance-depth/01-all-depths-accept.json",
+  "declared_depth": "transitive",
+  "attempted_depth": "transitive",
+  "configured_floor": "builder",
+  "runner_result": {
+    "outcome": "accept",
+    "verified_depth": "transitive",
+    "failures": [],
+    "unresolved": []
+  },
+  "expected_appraisal": {
+    "status": "affirming",
+    "verifier": "https://verifier.example/trace",
+    "policy_ref": "https://verifier.example/policy/builder-floor",
+    "timestamp": 1756900000,
+    "provenance_depth_verified": "transitive"
+  }
+}

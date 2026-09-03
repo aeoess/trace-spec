@@ -126,11 +126,35 @@ def revocation_bundle() -> list[Vector]:
                  lambda e: list(e.get("codes") or []))
 
 
+def build_provenance_depth_not_reached() -> list[Vector]:
+    """The depth not-reached candidate set.
+
+    Its vectors carry a serialized appraisal rather than an `expected` block, so
+    it does not go through `_load`. The outcome is the runner outcome the
+    appraisal was built from, and the boundary is the placeholder reason, which is
+    the unit `tests/test_build_provenance_depth_not_reached_completeness.py` holds
+    to a two-vector margin.
+    """
+    out = []
+    for path in sorted((EXAMPLES / "build-provenance-depth-not-reached").glob("*.json")):
+        vector = json.loads(path.read_text())
+        appraisal = vector["expected_appraisal"]
+        # The placeholder is a scalar: the reason class itself, or absent.
+        reason = appraisal.get("provenance_depth_not_reached")
+        v = Vector(path.stem, vector["runner_result"]["outcome"],
+                   [reason] if reason else [])
+        v.boundary = reason
+        out.append(v)
+    assert out, "no vectors loaded from build-provenance-depth-not-reached"
+    return out
+
+
 SETS = {
     "build-provenance-depth": (build_provenance_depth, _depth_boundary),
     "revocation-bundle": (revocation_bundle, None),
     "canonicalization-boundary": (canonicalization_boundary, None),
     "delegation-link": (delegation_link, None),
+    "build-provenance-depth-not-reached": (build_provenance_depth_not_reached, None),
 }
 
 # Every set must be able to fail both unconditional implementations. A set that

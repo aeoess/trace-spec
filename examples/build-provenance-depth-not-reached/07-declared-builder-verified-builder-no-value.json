@@ -1,0 +1,21 @@
+{
+  "name": "07-declared-builder-verified-builder-no-value",
+  "description": "The same record and the same runner block as 01, declared builder rather than transitive. Declared equals verified, so nothing declared went unreached and the value is absent. This pins the trigger's negative.",
+  "source_vector": "examples/build-provenance-depth/06-builder-accepts-resolved-dependencies-absent.json",
+  "declared_depth": "builder",
+  "attempted_depth": "builder",
+  "configured_floor": "builder",
+  "runner_result": {
+    "outcome": "accept",
+    "verified_depth": "builder",
+    "failures": [],
+    "unresolved": []
+  },
+  "expected_appraisal": {
+    "status": "affirming",
+    "verifier": "https://verifier.example/trace",
+    "policy_ref": "https://verifier.example/policy/builder-floor",
+    "timestamp": 1756900000,
+    "provenance_depth_verified": "builder"
+  }
+}
