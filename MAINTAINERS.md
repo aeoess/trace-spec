@@ -44,3 +44,5 @@ Maintainers who step back from active review are listed here with thanks.
 |---|---|
 | Rishabh Poddar | Spec Editor: specification, TEE profiles |
 | Aaron Fulkerson | Spec Editor: specification, governance |
+
+Rishabh Poddar and Aaron Fulkerson remain owners of the agentrust-io organization. That role covers organization administration and recovery, not routine review.
