@@ -19,7 +19,8 @@ from click.testing import CliRunner
 
 from trace_tests.cli import main
 from trace_tests.modules.tr_pol import check
-from trace_tests.result import Status
+from trace_tests.modules.unverified import finding_counts_as_level_failure
+from trace_tests.result import Finding, Status, finding_from_row, finding_row
 from trace_tests.runner import _run_levels, run
 
 BUNDLE = b'{"policy_id":"appraisal/agent-v1","version":"1.0.0"}'
@@ -132,24 +133,90 @@ def test_a_sha384_record_is_held_to_a_sha256_expectation():
     assert pol003(trace, honest, EXPECTED_SHA256).status is Status.FAIL
 
 
-@pytest.mark.parametrize(
-    "policy_resolver,status",
-    [(None, Status.SKIP), (offline, Status.UNVERIFIED)],
-    ids=["no-resolver", "unreadable"],
-)
-def test_an_uncompared_expectation_in_another_algorithm_is_named(policy_resolver, status):
-    f = pol003(trace_with(policy_uri=URI), policy_resolver, EXPECTED_SHA384)
-    assert f.status is status
-    assert "expected policy hash uses a different algorithm" in f.message
+def non_bytes(_uri: str):
+    return "not bytes"
 
 
-@pytest.mark.parametrize("policy", [{}, {"policy_uri": None}], ids=["absent", "null"])
-def test_an_uncompared_expectation_without_policy_uri_is_named(policy):
-    f = pol003(trace_with(**policy), None, EXPECTED_SHA384)
-    assert f.status is Status.SKIP
-    assert "expected policy hash uses a different algorithm" in f.message
-    plain = pol003(trace_with(**policy), None, None)
-    assert "different algorithm" not in plain.message
+UNEVALUATED = [
+    ({"policy_uri": URI}, None, "no resolver was supplied"),
+    ({"policy_uri": URI}, offline, "OSError: offline"),
+    ({"policy_uri": URI}, non_bytes, "rather than bytes"),
+    ({}, None, "policy.policy_uri is absent"),
+    ({"policy_uri": None}, None, "policy.policy_uri is null"),
+]
+UNEVALUATED_IDS = ["no-resolver", "unreadable", "non-bytes", "uri-absent", "uri-null"]
+
+
+@pytest.mark.parametrize("policy,policy_resolver,reason", UNEVALUATED, ids=UNEVALUATED_IDS)
+def test_an_uncompared_expectation_fails_every_level_without_claiming_a_mismatch(
+    policy, policy_resolver, reason
+):
+    f = pol003(trace_with(**policy), policy_resolver, EXPECTED_SHA384)
+    assert f.status is Status.UNVERIFIED
+    assert f.unverified_fails_from_level == 0
+    assert "the expected policy was not compared" in f.message
+    assert reason in f.message
+    assert "not the policy the verifier expects" not in f.message
+    assert [finding_counts_as_level_failure(f, level) for level in (0, 1, 2)] == [True] * 3
+
+
+@pytest.mark.parametrize("policy,policy_resolver,reason", UNEVALUATED, ids=UNEVALUATED_IDS)
+def test_without_an_expectation_the_same_inputs_keep_their_previous_result(
+    policy, policy_resolver, reason
+):
+    f = pol003(trace_with(**policy), policy_resolver, None)
+    assert f.unverified_fails_from_level is None
+    assert "expected policy" not in f.message
+    if policy_resolver in (offline, non_bytes):
+        assert f.status is Status.UNVERIFIED
+        assert [finding_counts_as_level_failure(f, level) for level in (0, 1, 2)] == [
+            False, False, True,
+        ]
+    else:
+        assert f.status is Status.SKIP
+        assert not any(finding_counts_as_level_failure(f, level) for level in (0, 1, 2))
+
+
+@pytest.mark.parametrize("policy_resolver", [offline, non_bytes], ids=["unreadable", "non-bytes"])
+def test_a_settled_same_algorithm_expectation_keeps_the_generic_threshold(policy_resolver):
+    # The declaration already equals the expectation, so the expectation was
+    # compared. What is left unresolved is the bundle itself, which keeps the
+    # registered TR-POL-003 threshold.
+    f = pol003(trace_with(policy_uri=URI), policy_resolver, SHA256)
+    assert f.status is Status.UNVERIFIED
+    assert f.unverified_fails_from_level is None
+    assert [finding_counts_as_level_failure(f, level) for level in (0, 1, 2)] == [
+        False, False, True,
+    ]
+
+
+def test_a_finding_threshold_only_tightens_its_code():
+    tighter = Finding("TR-POL-003", Status.UNVERIFIED, "m", unverified_fails_from_level=0)
+    looser = Finding("TR-SIG-005", Status.UNVERIFIED, "m", unverified_fails_from_level=2)
+    assert [finding_counts_as_level_failure(tighter, lv) for lv in (0, 1, 2)] == [True] * 3
+    assert [finding_counts_as_level_failure(looser, lv) for lv in (0, 1, 2)] == [
+        False, True, True,
+    ]
+
+
+def test_finding_rows_round_trip_and_stay_three_wide_without_a_threshold():
+    plain = Finding("TR-POL-003", Status.SKIP, "m")
+    tight = Finding("TR-POL-003", Status.UNVERIFIED, "m", unverified_fails_from_level=0)
+    assert finding_row(plain) == ["TR-POL-003", "skip", "m"]
+    assert finding_row(tight) == ["TR-POL-003", "unverified", "m", 0]
+    assert finding_from_row(finding_row(plain)) == plain
+    assert finding_from_row(finding_row(tight)) == tight
+    for bad in (["c", "skip", "m", -1], ["c", "skip", "m", True], ["c", "skip", "m", "0"], ["c"]):
+        with pytest.raises(ValueError):
+            finding_from_row(bad)
+
+
+@pytest.mark.parametrize("level", [0, 1, 2])
+def test_run_level_tally_counts_an_uncompared_expectation(level):
+    trace = trace_with(policy_uri=URI)
+    results = run(trace, "trace", level, expected_policy_hash=EXPECTED_SHA384)
+    pol = [f for f in results["TR-POL"] if f.code == "TR-POL-003"]
+    assert len(pol) == 1 and finding_counts_as_level_failure(pol[0], level)
 
 
 # --- the expectation is caller input --------------------------------------

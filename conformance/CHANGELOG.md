@@ -9,8 +9,10 @@
   policy other than the expected one, even when its `bundle_hash` matches the bundle
   `policy_uri` resolves to (trace-spec #280). Same-algorithm digests are compared
   before resolution, even without `policy_uri`. Across algorithms the comparison
-  requires resolved bytes, and the finding names an expectation it could not compare.
-  Without it, TR-POL-003 is unchanged.
+  requires resolved bytes. An expectation that cannot be compared, because
+  `policy_uri` is absent or null, no resolver was supplied, or the bundle could not be
+  read, is unverified and fails every level, which a finding records with
+  `unverified_fails_from_level`. Without it, TR-POL-003 is unchanged.
   Policy-resolution vectors 12 and 13 are the pass and fail pair.
 
 ### Changed

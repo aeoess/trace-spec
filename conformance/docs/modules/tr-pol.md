@@ -41,9 +41,13 @@ trace-tests verify --record record.json --policy-dir ./bundles \
 TR-POL-003 then fails a record that declares any other policy, even one whose
 digest matches what `policy_uri` resolves to. Digests using the same algorithm
 are compared before resolution, even without `policy_uri`. When the algorithms
-differ, the comparison requires resolved bytes, and missing bytes do not
-establish a match. The finding says the expectation was not compared. Without
-`--expected-policy-hash` the check behaves as it always has.
+differ, the comparison requires resolved bytes. If they cannot be had, because
+`policy_uri` is absent or null, no resolver was supplied, or the bundle could
+not be read, TR-POL-003 is unverified and fails the run at every level. That is
+not a finding that the record cites another policy. It says the comparison the
+verifier asked for did not happen, and a run that passed without it would
+answer a question the verifier did not ask. Without `--expected-policy-hash`
+the check behaves as it always has.
 
 **A malformed `policy_uri` is reported with or without a resolver.** A
 reference the record got wrong is a defect in the record, visible with no

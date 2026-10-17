@@ -99,6 +99,24 @@ _ACCOUNTING_SPEC = ObligationSpec(
             "TR-POL-003",
             (Status.FAIL,),
         ),
+        BranchRule(
+            "expected_policy_unevaluated_no_uri",
+            ProducerRole.NOT_ATTEMPTED,
+            "TR-POL-003",
+            (Status.UNVERIFIED,),
+        ),
+        BranchRule(
+            "expected_policy_unevaluated_no_resolver",
+            ProducerRole.NOT_ATTEMPTED,
+            "TR-POL-003",
+            (Status.UNVERIFIED,),
+        ),
+        BranchRule(
+            "expected_policy_unevaluated_unresolved",
+            ProducerRole.TARGET_ATTEMPTED_UNRESOLVED,
+            "TR-POL-003",
+            (Status.UNVERIFIED,),
+        ),
     ),
     _structural_sources(
         "/required/5",
@@ -178,15 +196,39 @@ def _expected_mismatch(
     )
 
 
-def _deferred_note(bundle_hash: str, expected_policy_hash: str | None) -> str:
-    """Say so when an expected hash in another algorithm was left uncompared."""
-    if expected_policy_hash is None:
-        return ""
-    if expected_policy_hash.partition(":")[0] == bundle_hash.partition(":")[0]:
-        return ""
-    return (
-        "; the expected policy hash uses a different algorithm from "
-        "policy.bundle_hash, so it was not compared either"
+def _needs_bytes(bundle_hash: str, expected_policy_hash: str | None) -> bool:
+    """Return True when the expected policy can only be compared over the bundle bytes.
+
+    That is the case when the verifier supplied an expectation in a different
+    digest algorithm from the record's own declaration.
+    """
+    if expected_policy_hash is None or not _DIGEST_RE.fullmatch(bundle_hash):
+        # A malformed declaration is TR-POL-001's failure; nothing is deferred.
+        return False
+    return expected_policy_hash.partition(":")[0] != bundle_hash.partition(":")[0]
+
+
+def _unevaluated(branch: str, expected_policy_hash: str, reason: str) -> Finding:
+    """Report an expected policy hash the verifier supplied that could not be compared.
+
+    The record has not been shown to cite another policy, so this is not a
+    failure of the record. But the verifier asked for the comparison, and a
+    result that reads as conformant without it would answer a question the
+    verifier did not ask. The finding is therefore unverified and fails the run
+    at every level, whatever the threshold registered for TR-POL-003, which
+    keeps governing callers that supplied no expectation.
+    """
+    return _observe(
+        "TR-POL",
+        branch,
+        Finding(
+            "TR-POL-003", Status.UNVERIFIED,
+            f"TR-POL-003: the expected policy hash {expected_policy_hash} uses a "
+            f"different algorithm from policy.bundle_hash and could only be compared "
+            f"over the policy bundle, which {reason}; the expected policy was not "
+            f"compared",
+            unverified_fails_from_level=0,
+        ),
     )
 
 
@@ -213,13 +255,18 @@ def _resolution_finding(
         mismatch = _expected_mismatch(bundle_hash, expected_policy_hash)
         if mismatch is not None:
             return mismatch
+        if expected_policy_hash is not None and _needs_bytes(bundle_hash, expected_policy_hash):
+            return _unevaluated(
+                "expected_policy_unevaluated_no_uri",
+                expected_policy_hash,
+                "the record does not reference (policy.policy_uri is absent)",
+            )
         return _observe(
             "TR-POL",
             "policy_uri_absent",
             Finding(
                 "TR-POL-003", Status.SKIP,
-                "policy.policy_uri not present (optional); no bundle to resolve"
-                + _deferred_note(bundle_hash, expected_policy_hash),
+                "policy.policy_uri not present (optional); no bundle to resolve",
             ),
         )
     policy_uri = policy.get("policy_uri")
@@ -227,13 +274,18 @@ def _resolution_finding(
         mismatch = _expected_mismatch(bundle_hash, expected_policy_hash)
         if mismatch is not None:
             return mismatch
+        if expected_policy_hash is not None and _needs_bytes(bundle_hash, expected_policy_hash):
+            return _unevaluated(
+                "expected_policy_unevaluated_no_uri",
+                expected_policy_hash,
+                "the record does not reference (policy.policy_uri is null)",
+            )
         return _observe(
             "TR-POL",
             "policy_uri_explicit_null",
             Finding(
                 "TR-POL-003", Status.SKIP,
-                "policy.policy_uri not present (optional); no bundle to resolve"
-                + _deferred_note(bundle_hash, expected_policy_hash),
+                "policy.policy_uri not present (optional); no bundle to resolve",
             ),
         )
     if not isinstance(policy_uri, str):
@@ -273,13 +325,18 @@ def _resolution_finding(
         return mismatch
 
     if policy_resolver is None:
+        if expected_policy_hash is not None and _needs_bytes(bundle_hash, expected_policy_hash):
+            return _unevaluated(
+                "expected_policy_unevaluated_no_resolver",
+                expected_policy_hash,
+                "was not resolved because no resolver was supplied",
+            )
         return _observe(
             "TR-POL",
             "no_resolver",
             Finding(
                 "TR-POL-003", Status.SKIP,
-                "policy.policy_uri not resolved; no resolver supplied"
-                + _deferred_note(bundle_hash, expected_policy_hash),
+                "policy.policy_uri not resolved; no resolver supplied",
             ),
         )
 
@@ -290,6 +347,13 @@ def _resolution_finding(
         # the bundle could not be read, which is the same word for a withdrawn
         # referent and a mistyped path; without the reason the second is
         # indistinguishable from weather.
+        if expected_policy_hash is not None and _needs_bytes(bundle_hash, expected_policy_hash):
+            return _unevaluated(
+                "expected_policy_unevaluated_unresolved",
+                expected_policy_hash,
+                f"could not be resolved from policy.policy_uri {policy_uri!r} "
+                f"({type(exc).__name__}: {exc})",
+            )
         return _observe(
             "TR-POL",
             "resolver_exception",
@@ -297,12 +361,18 @@ def _resolution_finding(
                 "TR-POL-003", Status.UNVERIFIED,
                 f"TR-POL-003: policy.policy_uri could not be resolved, so "
                 f"policy.bundle_hash was not checked against it: {policy_uri!r} "
-                f"({type(exc).__name__}: {exc})"
-                + _deferred_note(bundle_hash, expected_policy_hash),
+                f"({type(exc).__name__}: {exc})",
             ),
         )
 
     if not isinstance(resolved, bytes):
+        if expected_policy_hash is not None and _needs_bytes(bundle_hash, expected_policy_hash):
+            return _unevaluated(
+                "expected_policy_unevaluated_unresolved",
+                expected_policy_hash,
+                f"the policy resolver did not return (it returned "
+                f"{type(resolved).__name__} rather than bytes for {policy_uri!r})",
+            )
         return _observe(
             "TR-POL",
             "resolver_non_bytes",
@@ -310,8 +380,7 @@ def _resolution_finding(
                 "TR-POL-003", Status.UNVERIFIED,
                 "TR-POL-003: the policy resolver violated its contract by returning "
                 f"{type(resolved).__name__} rather than bytes, so policy.bundle_hash "
-                f"was not checked against policy.policy_uri {policy_uri!r}"
-                + _deferred_note(bundle_hash, expected_policy_hash),
+                f"was not checked against policy.policy_uri {policy_uri!r}",
             ),
         )
 
